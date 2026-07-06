@@ -1,0 +1,19 @@
+# Build output
+build/
+app/build/
+
+# Local configuration (contains SDK path - machine-specific)
+local.properties
+
+# IDE files
+.idea/
+*.iml
+.gradle/
+.kotlin/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Superpowers scratch (not source)
+.superpowers/

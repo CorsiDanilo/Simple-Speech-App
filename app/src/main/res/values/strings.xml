@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Simple Speech App</string>
+    <string name="accessibility_description">Rileva la tastiera virtuale e mostra un microfono galleggiante per la dettatura vocale</string>
+</resources>

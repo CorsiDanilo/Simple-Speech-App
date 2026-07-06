@@ -1,0 +1,8 @@
+<resources>
+    <!-- Base application theme for Compose app.
+         Uses AppCompat DayNight as XML root; Compose handles Material3 theming internally. -->
+    <style name="Theme.SimpleSpeechKeyboard" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+    </style>
+</resources>
