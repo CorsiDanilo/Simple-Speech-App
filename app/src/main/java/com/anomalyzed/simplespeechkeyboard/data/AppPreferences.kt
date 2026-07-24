@@ -36,6 +36,10 @@ class AppPreferences(context: Context) {
         get() = prefs.getInt(KEY_OVERLAY_Y, -1)
         set(value) = prefs.edit().putInt(KEY_OVERLAY_Y, value).apply()
 
+    var threadCount: Int
+        get() = prefs.getInt(KEY_THREAD_COUNT, com.anomalyzed.simplespeechkeyboard.whisper.WhisperCpuConfig.preferredThreadCount)
+        set(value) = prefs.edit().putInt(KEY_THREAD_COUNT, value).apply()
+
     companion object {
         const val ENGINE_WHISPER = "whisper"
 
@@ -44,5 +48,6 @@ class AppPreferences(context: Context) {
         private const val KEY_APP_LANGUAGE = "app_language"
         private const val KEY_OVERLAY_X = "overlay_x"
         private const val KEY_OVERLAY_Y = "overlay_y"
+        private const val KEY_THREAD_COUNT = "thread_count"
     }
 }

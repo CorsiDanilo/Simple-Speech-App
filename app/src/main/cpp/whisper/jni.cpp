@@ -89,6 +89,7 @@ Java_com_anomalyzed_simplespeechkeyboard_whisper_NativeWhisper_00024Companion_fu
         jint num_threads,
         jfloatArray audio_data,
         jstring language_str,
+        jstring initial_prompt_str,
         jobject callback
 ) {
     UNUSED(thiz);
@@ -103,6 +104,10 @@ Java_com_anomalyzed_simplespeechkeyboard_whisper_NativeWhisper_00024Companion_fu
     const char *language = language_str != nullptr
             ? env->GetStringUTFChars(language_str, nullptr)
             : nullptr;
+    const char *initial_prompt = initial_prompt_str != nullptr
+            ? env->GetStringUTFChars(initial_prompt_str, nullptr)
+            : nullptr;
+
     jclass callback_class = env->GetObjectClass(callback);
     callback_context callbacks = {};
     callbacks.env = env;
@@ -121,6 +126,9 @@ Java_com_anomalyzed_simplespeechkeyboard_whisper_NativeWhisper_00024Companion_fu
         if (language != nullptr) {
             env->ReleaseStringUTFChars(language_str, language);
         }
+        if (initial_prompt != nullptr) {
+            env->ReleaseStringUTFChars(initial_prompt_str, initial_prompt);
+        }
         env->ReleaseFloatArrayElements(audio_data, audio_data_arr, JNI_ABORT);
         return -2;
     }
@@ -132,6 +140,7 @@ Java_com_anomalyzed_simplespeechkeyboard_whisper_NativeWhisper_00024Companion_fu
     params.print_special = false;
     params.translate = false;
     params.language = language;
+    params.initial_prompt = initial_prompt;
     params.n_threads = num_threads;
     params.offset_ms = 0;
     params.no_context = true;
@@ -145,7 +154,7 @@ Java_com_anomalyzed_simplespeechkeyboard_whisper_NativeWhisper_00024Companion_fu
     params.abort_callback_user_data = &callbacks;
 
     whisper_reset_timings(context);
-    LOGI("Running whisper_full with %d samples and %d threads", audio_data_length, num_threads);
+    LOGI("Running whisper_full with %d samples, %d threads", audio_data_length, num_threads);
     const int result = whisper_full(context, params, audio_data_arr, audio_data_length);
     if (result != 0) {
         LOGW("whisper_full failed: %d", result);
@@ -153,6 +162,9 @@ Java_com_anomalyzed_simplespeechkeyboard_whisper_NativeWhisper_00024Companion_fu
 
     if (language != nullptr) {
         env->ReleaseStringUTFChars(language_str, language);
+    }
+    if (initial_prompt != nullptr) {
+        env->ReleaseStringUTFChars(initial_prompt_str, initial_prompt);
     }
     env->ReleaseFloatArrayElements(audio_data, audio_data_arr, JNI_ABORT);
     return result;

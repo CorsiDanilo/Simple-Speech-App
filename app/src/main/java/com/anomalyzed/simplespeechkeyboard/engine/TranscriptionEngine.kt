@@ -10,6 +10,7 @@ interface TranscriptionEngine {
         audioBytes: ByteArray,
         mimeType: String,
         language: String,
+        initialPrompt: String = "",
         onProgress: (String) -> Unit,
         onPartialText: (String) -> Unit
     ): TranscriptionResult

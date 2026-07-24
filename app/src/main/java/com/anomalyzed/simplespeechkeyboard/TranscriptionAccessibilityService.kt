@@ -134,7 +134,7 @@ class TranscriptionAccessibilityService : AccessibilityService() {
 
             // 2. Real-time streaming transcription job while speaking
             streamingJob = serviceScope.launch(Dispatchers.IO) {
-                delay(1200)
+                delay(800)
                 while (isRecording) {
                     val currentAudio = synchronized(audioBuffer) { combineBuffers(audioBuffer) }
                     if (currentAudio.size >= 25000) {
@@ -143,10 +143,12 @@ class TranscriptionAccessibilityService : AccessibilityService() {
                                 audioBytes = currentAudio,
                                 mimeType = "audio/wav",
                                 language = prefs.language,
+                                initialPrompt = initialText,
                                 onProgress = {},
                                 onPartialText = { partial ->
                                     if (partial.isNotBlank() && isRecording) {
                                         serviceScope.launch(Dispatchers.Main) {
+                                            overlayManager.updateLivePreview(partial)
                                             injectLiveText(partial)
                                         }
                                     }
@@ -154,6 +156,7 @@ class TranscriptionAccessibilityService : AccessibilityService() {
                             )
                             if (result is TranscriptionResult.Success && result.text.isNotBlank() && isRecording) {
                                 serviceScope.launch(Dispatchers.Main) {
+                                    overlayManager.updateLivePreview(result.text)
                                     injectLiveText(result.text)
                                 }
                             }
@@ -161,7 +164,7 @@ class TranscriptionAccessibilityService : AccessibilityService() {
                             Log.d(TAG, "Streaming interim exception: ${e.message}")
                         }
                     }
-                    delay(1200)
+                    delay(1000)
                 }
             }
 
@@ -212,9 +215,11 @@ class TranscriptionAccessibilityService : AccessibilityService() {
                     audioBytes = combined,
                     mimeType = "audio/wav",
                     language = prefs.language,
+                    initialPrompt = initialText,
                     onProgress = { Log.i(TAG, "Final progress: $it") },
                     onPartialText = { partial ->
                         serviceScope.launch(Dispatchers.Main) {
+                            overlayManager.updateLivePreview(partial)
                             injectLiveText(partial)
                         }
                     }
@@ -223,6 +228,7 @@ class TranscriptionAccessibilityService : AccessibilityService() {
                     when (result) {
                         is TranscriptionResult.Success -> {
                             if (result.text.isNotBlank()) {
+                                overlayManager.updateLivePreview(result.text)
                                 injectLiveText(result.text)
                             }
                         }

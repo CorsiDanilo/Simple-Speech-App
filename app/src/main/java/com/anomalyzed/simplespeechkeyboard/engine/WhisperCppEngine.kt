@@ -27,6 +27,7 @@ class WhisperCppEngine(
         audioBytes: ByteArray,
         mimeType: String,
         language: String,
+        initialPrompt: String,
         onProgress: (String) -> Unit,
         onPartialText: (String) -> Unit
     ): TranscriptionResult {
@@ -50,21 +51,24 @@ class WhisperCppEngine(
             val context = getOrCreateContext()
 
             onProgress("Trascrizione in corso...")
-            val transcript = context.transcribeData(
+            val rawTranscript = context.transcribeData(
                 data = floatSamples,
                 languageCode = language.toWhisperLanguageCode(),
+                initialPrompt = initialPrompt,
                 onProgress = { progress ->
                     onProgress("Trascrizione Whisper... $progress%")
                 },
                 onNewSegment = { partialText ->
-                    if (partialText.isNotBlank()) {
-                        onPartialText(partialText)
+                    val processedPartial = TextPostProcessor.process(partialText)
+                    if (processedPartial.isNotBlank()) {
+                        onPartialText(processedPartial)
                     }
                 }
             )
 
-            if (transcript.isNotBlank()) {
-                TranscriptionResult.Success(transcript)
+            val cleanedTranscript = TextPostProcessor.process(rawTranscript)
+            if (cleanedTranscript.isNotBlank()) {
+                TranscriptionResult.Success(cleanedTranscript)
             } else {
                 TranscriptionResult.Error("Whisper non ha prodotto testo. Verifica volume e contenuto audio.")
             }

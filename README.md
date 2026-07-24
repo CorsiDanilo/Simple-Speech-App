@@ -1,81 +1,85 @@
 # Simple Speech Keyboard (Whisper Android Accessibility App)
 
-Un'applicazione Android privacy-first per la trascrizione vocale in tempo reale (Speech-to-Text) totalmente offline, integrata tramite Servizio di Accessibilità Android ed alimentata nativamente da **whisper.cpp**.
+A privacy-first, 100% offline real-time speech-to-text (STT) Android application powered natively by **whisper.cpp** and integrated seamlessly via an Android Accessibility Service.
 
 ---
 
-## 🌟 Caratteristiche Principali
+## 🌟 Key Features
 
-- 🔒 **100% Offline & Privacy-First**: Tutti i dati audio vengono elaborati direttamente sul dispositivo senza inviare alcuna informazione a server esterni.
-- ⚡ **Motore Nativo C++ (`whisper.cpp`)**: Integrazione JNI ad alte prestazioni per un'esecuzione rapida e a basso consumo dei modelli GGML.
-- 🎯 **Servizio di Accessibilità Integrato**: Funziona su qualsiasi applicazione! Un overlay/fluttuante ti permette di dettare testo in tempo reale che viene direttamente inserito nel campo di testo attivo.
-- 📦 **Gestione Modelli Intelligente**: Scarica e gestisci i modelli Whisper (Tiny, Base, Small) direttamente dall'app.
-- 🎨 **Interfaccia Moderna**: Realizzata interamente con Jetpack Compose e Material 3.
+- 🔒 **100% Offline & Privacy-First**: All audio processing happens strictly on-device. No audio data or transcripts ever leave your phone.
+- ⚡ **Native C++ Engine (`whisper.cpp`)**: High-performance JNI integration for fast, low-latency, and battery-efficient GGML model execution.
+- 🎯 **System-Wide Accessibility Overlay**: Works across any Android app! A floating, draggable microphone bubble lets you dictate text in real time directly into any active text input field.
+- 💬 **Live Text Preview**: Real-time preview chip displayed directly inside the floating overlay bubble as you speak.
+- 🎙️ **Voice Activity Detection (VAD) & Silence Chunking**: Smart audio energy monitoring (RMS) breaks continuous speech into natural phrases upon silence pauses (>500ms), eliminating CPU bottlenecks.
+- 🧠 **Context Awareness (`initial_prompt`)**: Passes existing text from the input field to Whisper NDK to maintain grammar, capitalization, punctuation, and vocabulary consistency.
+- 🧹 **Automatic Text Cleaning**: Post-processing filter removes Whisper hallucinations (*"Subtitles by..."*), vocal hesitation fillers (*"ehm"*, *"uhm"*), and fixes spacing/punctuation.
+- 📦 **Smart Model Manager**: Download, verify, and switch between Whisper models (Tiny, Base, Small) in GGML format directly within the app.
+- 🎨 **Modern Jetpack Compose UI**: Beautiful, intuitive interface built with Jetpack Compose and Material 3 design guidelines.
 
 ---
 
-## 📐 Architettura del Progetto
+## 📐 Project Architecture
 
 ```text
 Simple-Speech-App/
 ├── app/
 │   ├── src/main/
-│   │   ├── cpp/                 # Binding JNI C++ e CMake Build
-│   │   │   ├── whisper_jni.cpp  # Interfaccia C++ per Whisper
-│   │   │   └── CMakeLists.txt
+│   │   ├── cpp/                 # C++ JNI Bindings & CMake Build
+│   │   │   ├── whisper/         # JNI bridge (jni.cpp) & CMakeLists.txt
 │   │   ├── java/com/anomalyzed/simplespeechkeyboard/
-│   │   │   ├── data/            # Gestione Modelli e Preferenze
-│   │   │   ├── engine/          # Recording Audio (PCM 16kHz) & Whisper Engine
-│   │   │   ├── ui/              # Schermate Jetpack Compose
-│   │   │   ├── OverlayManager.kt# Gestione Finestra Fluttuante
-│   │   │   └── TranscriptionAccessibilityService.kt # Servizio di Accessibilità
-│   │   └── res/                 # Layout, Stringhe, Config Accessibilità
+│   │   │   ├── data/            # Model Repository, Preferences & Metadata
+│   │   │   ├── engine/          # Audio Recorder (PCM 16kHz VAD), PostProcessor & Whisper Engine
+│   │   │   ├── ui/              # Jetpack Compose UI Screens & Theme
+│   │   │   ├── whisper/         # WhisperContext & Native JNI Wrapper
+│   │   │   ├── OverlayManager.kt# Floating Bubble UI & Live Text Preview Chip
+│   │   │   └── TranscriptionAccessibilityService.kt # Accessibility Service & Text Injection
+│   │   └── res/                 # Layouts, Strings, & Accessibility Service Config
 └── third_party/
-    └── whisper.cpp              # Sottomodulo C++ Whisper Nativo
+    └── whisper.cpp              # Native C++ Whisper Submodule
 ```
 
 ---
 
-## 🛠️ Requisiti di Compilazione
+## 🛠️ Build Requirements
 
-- **Android Studio**: Ladybug / Jellyfish o superiore
-- **Android SDK**: API Level 35 (Min SDK: 26 - Android 8.0)
-- **Android NDK**: versione 25+ e **CMake** 3.22+
+- **Android Studio**: Ladybug / Jellyfish or newer
+- **Android SDK**: Target API 35 (Min SDK: 26 - Android 8.0)
+- **Android NDK**: Version 25+ with **CMake** 3.22+
 - **Gradle**: 8.x +
 
 ---
 
-## 🚀 Come Compilare ed Eseguire
+## 🚀 Building & Running
 
-1. **Clona il repository (inclusi i sottomoduli)**:
+1. **Clone the repository (with submodules)**:
    ```bash
    git clone --recursive https://github.com/CorsiDanilo/Simple-Speech-App.git
    cd Simple-Speech-App
    ```
 
-2. **Compila la versione Debug**:
+2. **Build Debug APK**:
    ```bash
    ./gradlew assembleDebug
    ```
-   L'APK Debug sarà generato in: `app/build/outputs/apk/debug/app-debug.apk`.
+   The Debug APK will be generated at: `app/build/outputs/apk/debug/app-debug.apk`.
 
-3. **Compila la versione Release**:
+3. **Build Release APK**:
    ```bash
    ./gradlew assembleRelease
    ```
-   L'APK Release sarà generato in: `app/build/outputs/apk/release/app-release-unsigned.apk`.
+   The Release APK will be generated at: `app/build/outputs/apk/release/app-release-unsigned.apk`.
 
 ---
 
-## 📱 Come Usare l'Applicazione
+## 📱 How to Use
 
-1. Avvia l'app sul dispositivo Android.
-2. Scarica uno dei modelli supportati (es. `Whisper Tiny` o `Whisper Base`) nella schermata Impostazioni.
-3. Abilita il **Servizio di Accessibilità** per *Simple Speech Keyboard* nelle Impostazioni di Sistema del telefono.
-4. Apri qualsiasi app (es. WhatsApp, Note, Telegram), fai tap su un campo di testo e usa il pulsante dell'overlay fluttuante per iniziare la dettatura vocale!
+1. Launch the app on your Android device.
+2. Download a supported model (e.g., `Whisper Tiny` or `Whisper Base`) in the **Model Manager** screen.
+3. Enable the **Accessibility Service** for *Simple Speech Keyboard* in Android System Settings.
+4. Open any app (e.g., WhatsApp, Notes, Telegram, Messages), tap on a text field, and tap the floating microphone overlay to start voice dictation!
 
 ---
 
-## 📄 Licenza
+## 📄 License
 
-Questo progetto è rilasciato sotto licenza MIT.
+This project is licensed under the MIT License.

@@ -89,4 +89,33 @@ class AudioRecorder {
 
     /** Returns the sample rate used for recording (16 000 Hz). */
     val recordingSampleRate: Int get() = sampleRate
+
+    companion object {
+        /**
+         * Calculates the Root Mean Square (RMS) amplitude of a 16-bit PCM little-endian byte array.
+         * Returns a value between 0.0 (total silence) and 1.0 (maximum volume).
+         */
+        fun calculateRms(pcmBytes: ByteArray): Float {
+            if (pcmBytes.size < 2) return 0f
+            var sumSquare = 0.0
+            val sampleCount = pcmBytes.size / 2
+            for (i in 0 until sampleCount) {
+                val low = pcmBytes[i * 2].toInt() and 0xFF
+                val high = pcmBytes[i * 2 + 1].toInt()
+                val sample = ((high shl 8) or low).toShort()
+                val normalized = sample / 32768.0
+                sumSquare += normalized * normalized
+            }
+            return Math.sqrt(sumSquare / sampleCount).toFloat()
+        }
+
+        /**
+         * Checks if the PCM audio chunk contains speech above a specified RMS threshold.
+         * Default threshold is 0.025 (~ -32 dB), suitable for detecting spoken words.
+         */
+        fun isSpeech(pcmBytes: ByteArray, threshold: Float = 0.025f): Boolean {
+            return calculateRms(pcmBytes) >= threshold
+        }
+    }
 }
+

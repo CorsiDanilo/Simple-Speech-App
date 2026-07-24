@@ -21,12 +21,14 @@ class WhisperContext private constructor(private var ptr: Long) {
     suspend fun transcribeData(
         data: FloatArray,
         languageCode: String,
+        initialPrompt: String = "",
+        threadCount: Int = WhisperCpuConfig.preferredThreadCount,
         onProgress: (Int) -> Unit,
         onNewSegment: (String) -> Unit
     ): String =
         withContext(scope.coroutineContext) {
             require(ptr != 0L) { "Whisper context has already been released." }
-            val numThreads = WhisperCpuConfig.preferredThreadCount
+            val numThreads = threadCount
             val coroutineContext = currentCoroutineContext()
             val job = coroutineContext[Job]
             val abortRequested = AtomicBoolean(false)
@@ -49,7 +51,14 @@ class WhisperContext private constructor(private var ptr: Long) {
             }
 
             try {
-                val result = NativeWhisper.fullTranscribe(ptr, numThreads, data, languageCode, callback)
+                val result = NativeWhisper.fullTranscribe(
+                    contextPtr = ptr,
+                    numThreads = numThreads,
+                    audioData = data,
+                    languageCode = languageCode,
+                    initialPromptStr = initialPrompt,
+                    callback = callback
+                )
                 if (callback.shouldAbort()) {
                     throw InterruptedException("Whisper transcription cancelled.")
                 }
@@ -112,6 +121,7 @@ private class NativeWhisper {
             numThreads: Int,
             audioData: FloatArray,
             languageCode: String,
+            initialPromptStr: String,
             callback: NativeWhisperCallback
         ): Int
         external fun getTextSegmentCount(contextPtr: Long): Int
