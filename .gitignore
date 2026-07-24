@@ -25,3 +25,9 @@ app/.cxx/
 # Generated APKs
 *.apk
 
+# Keystores & Signing Keys (NEVER commit these)
+*.jks
+*.keystore
+*.pepk
+
+
