@@ -22,11 +22,6 @@ Thumbs.db
 app/.cxx/
 .cxx/
 
-# Local tools & logs
-.graphify/
-.graphifyignore
-logs.txt
-
 # Generated APKs
 *.apk
 
