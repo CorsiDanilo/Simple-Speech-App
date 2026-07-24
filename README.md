@@ -9,6 +9,7 @@ A privacy-first, 100% offline real-time speech-to-text (STT) Android application
 - 🔒 **100% Offline & Privacy-First**: All audio processing happens strictly on-device. No audio data or transcripts ever leave your phone.
 - ⚡ **Native C++ Engine (`whisper.cpp`)**: High-performance JNI integration for fast, low-latency, and battery-efficient GGML model execution.
 - 🎯 **System-Wide Accessibility Overlay**: Works across any Android app! A floating, draggable microphone bubble lets you dictate text in real time directly into any active text input field.
+- 🎨 **Microphone Customization & Live Preview**: Full customization for floating microphone button size (40-80dp), opacity (30-100%), and accent color hue (0-360°) with a real-time interactive preview box in Settings.
 - 💬 **Live Text Preview**: Real-time preview chip displayed directly inside the floating overlay bubble as you speak.
 - 🎙️ **Voice Activity Detection (VAD) & Silence Chunking**: Smart audio energy monitoring (RMS) breaks continuous speech into natural phrases upon silence pauses (>500ms), eliminating CPU bottlenecks.
 - 🧠 **Context Awareness (`initial_prompt`)**: Passes existing text from the input field to Whisper NDK to maintain grammar, capitalization, punctuation, and vocabulary consistency.

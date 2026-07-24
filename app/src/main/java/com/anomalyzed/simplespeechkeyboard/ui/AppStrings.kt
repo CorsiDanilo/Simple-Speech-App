@@ -31,6 +31,14 @@ class Strings(val lang: AppLanguage) {
     val appUpdatesSection = if (isIt) "Aggiornamenti" else "App Updates"
     val aboutSection = if (isIt) "Informazioni" else "About"
 
+    // Microphone Customization
+    val micCustomizationSection = if (isIt) "Personalizzazione Microfono" else "Microphone Customization"
+    val micSizeTitle = if (isIt) "Dimensione Pulsante" else "Button Size"
+    val micOpacityTitle = if (isIt) "Trasparenza / Opacità" else "Transparency / Opacity"
+    val micColorTitle = if (isIt) "Colore Accento" else "Accent Color"
+    val micResetDefaults = if (isIt) "Ripristina Predefiniti" else "Reset to Defaults"
+    val micLivePreview = if (isIt) "Anteprima Live" else "Live Preview"
+
     // Service Status items
     val accessibilityInactiveTitle = if (isIt) "Servizio Accessibilità inattivo" else "Accessibility Service Inactive"
     val accessibilityInactiveSub = if (isIt) "Tocca per attivarlo nelle impostazioni di Android." else "Tap to enable in Android settings."

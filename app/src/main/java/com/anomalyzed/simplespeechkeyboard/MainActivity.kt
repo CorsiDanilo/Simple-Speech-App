@@ -34,6 +34,11 @@ import com.anomalyzed.simplespeechkeyboard.ui.AppLanguage
 import com.anomalyzed.simplespeechkeyboard.ui.LocalAppStrings
 import com.anomalyzed.simplespeechkeyboard.ui.Strings
 import com.anomalyzed.simplespeechkeyboard.ui.screens.ModelManagerScreen
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Brush
 import com.anomalyzed.simplespeechkeyboard.ui.theme.SimpleSpeechKeyboardTheme
 import com.anomalyzed.simplespeechkeyboard.ui.theme.Gold
 import com.anomalyzed.simplespeechkeyboard.ui.theme.DarkGray
@@ -181,6 +186,11 @@ fun SettingsScreen(
                         )
                     }
                 }
+            }
+
+            // ─── Microphone Customization ───────────────────────────────────────
+            item {
+                MicrophoneCustomizationSection(prefs = prefs)
             }
 
             // ─── Whisper Model Manager (Local Model) ───────────────────────────
@@ -379,4 +389,201 @@ private fun isAccessibilityServiceEnabled(context: android.content.Context): Boo
     val serviceName = "${context.packageName}/${TranscriptionAccessibilityService::class.java.canonicalName}"
     val enabledServices = Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: return false
     return enabledServices.contains(serviceName)
+}
+
+@Composable
+fun MicrophoneCustomizationSection(prefs: AppPreferences) {
+    val strings = LocalAppStrings.current
+    var micSize by remember { mutableFloatStateOf(prefs.overlaySizeDp.toFloat()) }
+    var micOpacity by remember { mutableFloatStateOf(prefs.overlayOpacityPercent.toFloat()) }
+    var micHue by remember { mutableFloatStateOf(prefs.overlayColorHue) }
+    var previewState by remember { mutableStateOf(OverlayManager.State.IDLE) }
+
+    val activeAccentColor = remember(micHue) {
+        Color(android.graphics.Color.HSVToColor(floatArrayOf(micHue, 0.85f, 0.95f)))
+    }
+
+    SettingSection(strings.micCustomizationSection) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            // Live Preview Box
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(130.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF141414))
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = strings.micLivePreview,
+                        fontSize = 11.sp,
+                        color = Color.DarkGray,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp)
+                    )
+
+                    // Simulated Microphone Overlay Button
+                    val strokeColor = when (previewState) {
+                        OverlayManager.State.IDLE -> activeAccentColor
+                        OverlayManager.State.RECORDING -> Color(0xFFFF8A80)
+                        OverlayManager.State.PROCESSING -> Color(0xFFFFE082)
+                    }
+                    val bgColor = when (previewState) {
+                        OverlayManager.State.IDLE -> Color(0xFF1E1E1E)
+                        OverlayManager.State.RECORDING -> Color(0xFFD32F2F)
+                        OverlayManager.State.PROCESSING -> Color(0xFFF57C00)
+                    }
+                    val currentAlpha = when (previewState) {
+                        OverlayManager.State.RECORDING -> 1.0f
+                        else -> (micOpacity / 100f).coerceIn(0.3f, 1.0f)
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(micSize.dp)
+                            .alpha(currentAlpha)
+                            .background(bgColor, CircleShape)
+                            .border(2.dp, strokeColor, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size((micSize / 2.2f).dp)
+                        )
+                    }
+                }
+            }
+
+            // Preview State Selector
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                listOf(
+                    OverlayManager.State.IDLE to "Idle",
+                    OverlayManager.State.RECORDING to "Recording",
+                    OverlayManager.State.PROCESSING to "Processing"
+                ).forEach { (state, label) ->
+                    FilterChip(
+                        selected = previewState == state,
+                        onClick = { previewState = state },
+                        label = { Text(label, fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Gold,
+                            selectedLabelColor = Color.Black
+                        )
+                    )
+                }
+            }
+
+            HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp)
+
+            // Size Control
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(strings.micSizeTitle, fontSize = 14.sp, color = LightGray)
+                    Text("${micSize.toInt()} dp", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Gold)
+                }
+                Slider(
+                    value = micSize,
+                    onValueChange = {
+                        micSize = it
+                        prefs.overlaySizeDp = it.toInt()
+                    },
+                    valueRange = 40f..80f,
+                    colors = SliderDefaults.colors(thumbColor = Gold, activeTrackColor = Gold)
+                )
+            }
+
+            // Opacity Control
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(strings.micOpacityTitle, fontSize = 14.sp, color = LightGray)
+                    Text("${micOpacity.toInt()} %", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Gold)
+                }
+                Slider(
+                    value = micOpacity,
+                    onValueChange = {
+                        micOpacity = it
+                        prefs.overlayOpacityPercent = it.toInt()
+                    },
+                    valueRange = 30f..100f,
+                    colors = SliderDefaults.colors(thumbColor = Gold, activeTrackColor = Gold)
+                )
+            }
+
+            // Color Hue Control
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(strings.micColorTitle, fontSize = 14.sp, color = LightGray)
+                        Spacer(Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(16.dp)
+                                .background(activeAccentColor, CircleShape)
+                                .border(1.dp, Color.White, CircleShape)
+                        )
+                    }
+                    Text("${micHue.toInt()}°", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = activeAccentColor)
+                }
+                Spacer(Modifier.height(4.dp))
+                val rainbowBrush = remember {
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red
+                        )
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(10.dp)
+                        .background(rainbowBrush, RoundedCornerShape(5.dp))
+                )
+                Slider(
+                    value = micHue,
+                    onValueChange = {
+                        micHue = it
+                        prefs.overlayColorHue = it
+                    },
+                    valueRange = 0f..360f,
+                    colors = SliderDefaults.colors(thumbColor = activeAccentColor, activeTrackColor = Color.Transparent, inactiveTrackColor = Color.Transparent)
+                )
+            }
+
+            // Reset Defaults Button
+            TextButton(
+                onClick = {
+                    prefs.resetOverlayCustomizations()
+                    micSize = prefs.overlaySizeDp.toFloat()
+                    micOpacity = prefs.overlayOpacityPercent.toFloat()
+                    micHue = prefs.overlayColorHue
+                },
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp), tint = Gold)
+                Spacer(Modifier.width(6.dp))
+                Text(strings.micResetDefaults, color = Gold, fontSize = 13.sp)
+            }
+        }
+    }
 }

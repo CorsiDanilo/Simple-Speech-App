@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-07-24
+
+### 🚀 Features & Customization
+- **Microphone Customization Section**: Added dedicated customization controls in the Settings screen allowing users to adjust the floating microphone overlay button.
+- **Button Size Control**: Dynamic button diameter customization ranging from 40dp to 80dp.
+- **Transparency / Opacity Control**: Adjustable opacity ranging from 30% to 100%.
+- **Accent Color Hue Selector**: Continuous rainbow hue slider allowing custom accent color selection for the floating microphone border.
+- **Interactive Live Preview Box**: Real-time simulated preview of the floating microphone button directly inside Settings with state toggles (Idle, Recording, Processing).
+- **Reset to Defaults**: Quick action to restore standard dimensions (54dp, 90% opacity, Classic Gold accent).
+
 ## [1.0.0] - 2026-07-24
 
 ### 🚀 Enhancements & UI Refinements

@@ -35,8 +35,8 @@ class OverlayManager(
 
     private var currentState = State.IDLE
 
-    // Standard floating button diameter: 54dp
-    private val buttonSizeDp = 54
+    // Dynamic floating button diameter from preferences
+    private val buttonSizeDp get() = prefs.overlaySizeDp
 
     fun show() {
         if (overlayView != null) return
@@ -93,6 +93,20 @@ class OverlayManager(
         overlayView?.let { updateAppearance(state) }
     }
 
+    /** Updates layout params and appearance dynamically on customization changes. */
+    fun updateCustomization(sizeDp: Int, opacityPercent: Int, hue: Float) {
+        micButton?.let { btn ->
+            val sizePx = sizeDp.dp
+            val lp = btn.layoutParams
+            lp.width = sizePx
+            lp.height = sizePx
+            btn.layoutParams = lp
+            val pad = (sizePx / 4.5f).toInt().coerceAtLeast(4.dp)
+            btn.setPadding(pad, pad, pad, pad)
+        }
+        overlayView?.let { updateAppearance(currentState) }
+    }
+
     private fun updateAppearance(state: State) {
         val btn = micButton ?: return
         pulseAnimator?.cancel()
@@ -103,13 +117,15 @@ class OverlayManager(
             shape = GradientDrawable.OVAL
         }
 
+        val targetAlpha = (prefs.overlayOpacityPercent / 100f).coerceIn(0.3f, 1.0f)
+
         when (state) {
             State.IDLE -> {
-                // Sleek dark grey button with subtle Gold border
+                val accentColor = Color.HSVToColor(floatArrayOf(prefs.overlayColorHue, 0.85f, 0.95f))
                 bg.setColor(Color.parseColor("#1E1E1E"))
-                bg.setStroke(strokeWidth, Color.parseColor("#D4AF37")) // Gold stroke
+                bg.setStroke(strokeWidth, accentColor)
                 btn.background = bg
-                btn.alpha = 0.92f
+                btn.alpha = targetAlpha
                 btn.scaleX = 1.0f
                 btn.scaleY = 1.0f
             }
@@ -138,7 +154,7 @@ class OverlayManager(
                 bg.setColor(Color.parseColor("#F57C00"))
                 bg.setStroke(strokeWidth, Color.parseColor("#FFE082"))
                 btn.background = bg
-                btn.alpha = 0.95f
+                btn.alpha = targetAlpha
                 btn.scaleX = 1.0f
                 btn.scaleY = 1.0f
             }
