@@ -4,6 +4,10 @@
     <!-- Permesso microfono per la registrazione audio -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!-- Permessi per Foreground Service Microfono (Android 14+) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+
     <!-- Permesso per disegnare sopra le altre app (overlay flottante) -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
@@ -32,6 +36,7 @@
         <service
             android:name=".TranscriptionAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:foregroundServiceType="microphone"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />

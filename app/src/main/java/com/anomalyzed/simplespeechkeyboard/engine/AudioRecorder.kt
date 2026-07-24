@@ -38,8 +38,19 @@ class AudioRecorder {
             audioEncoding,
             bufferSize
         )
+        if (record.state != AudioRecord.STATE_INITIALIZED) {
+            try { record.release() } catch (_: Exception) {}
+            throw IllegalStateException("AudioRecord non inizializzato. Il microfono potrebbe essere occupato o bloccato dal sistema.")
+        }
+
         audioRecord = record
-        record.startRecording()
+        try {
+            record.startRecording()
+        } catch (e: Exception) {
+            try { record.release() } catch (_: Exception) {}
+            audioRecord = null
+            throw e
+        }
 
         try {
             val buffer = ByteArray(bufferSize)
@@ -49,18 +60,31 @@ class AudioRecorder {
                 val read = record.read(buffer, 0, buffer.size)
                 if (read > 0) {
                     emit(buffer.copyOf(read))
+                } else if (read < 0) {
+                    break
                 }
             }
         } finally {
-            record.stop()
-            record.release()
+            try {
+                if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                    record.stop()
+                }
+            } catch (_: Exception) {}
+            try {
+                record.release()
+            } catch (_: Exception) {}
             audioRecord = null
         }
     }
 
     /** Signals the active [AudioRecord] to stop; the flow will terminate on its next iteration. */
     fun stopRecording() {
-        audioRecord?.stop()
+        try {
+            val rec = audioRecord
+            if (rec != null && rec.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                rec.stop()
+            }
+        } catch (_: Exception) {}
     }
 
     /** Returns the sample rate used for recording (16 000 Hz). */

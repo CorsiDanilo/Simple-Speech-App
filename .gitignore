@@ -17,3 +17,16 @@ Thumbs.db
 
 # Superpowers scratch (not source)
 .superpowers/
+
+# C++ CMake local build output
+app/.cxx/
+.cxx/
+
+# Local tools & logs
+.graphify/
+.graphifyignore
+logs.txt
+
+# Generated APKs
+*.apk
+

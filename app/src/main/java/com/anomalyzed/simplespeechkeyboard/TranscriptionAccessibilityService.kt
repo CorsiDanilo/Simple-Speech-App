@@ -10,33 +10,36 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import com.anomalyzed.simplespeechkeyboard.engine.AudioRecorder
-import com.anomalyzed.simplespeechkeyboard.engine.CloudEngine
-import com.anomalyzed.simplespeechkeyboard.engine.AICoreEngine
-import com.anomalyzed.simplespeechkeyboard.engine.LiteRTEngine
 import com.anomalyzed.simplespeechkeyboard.engine.WhisperCppEngine
 import com.anomalyzed.simplespeechkeyboard.engine.TranscriptionEngine
 import com.anomalyzed.simplespeechkeyboard.engine.TranscriptionResult
 import com.anomalyzed.simplespeechkeyboard.data.AppPreferences
+import android.Manifest
+import android.content.pm.PackageManager
+import android.widget.Toast
+import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Accessibility service that:
  * 1. Detects when the software keyboard is visible/hidden.
  * 2. Shows/hides the floating microphone overlay accordingly.
- * 3. Records audio, transcribes it via the selected engine, and injects the
- *    resulting text into the currently focused input field.
+ * 3. Records audio, transcribes it in real-time using local Whisper.cpp engine,
+ *    and streams/injects the resulting text into the currently focused input field.
  */
 class TranscriptionAccessibilityService : AccessibilityService() {
 
     private val TAG = "TranscriptionA11y"
 
-    private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
+    private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private lateinit var overlayManager: OverlayManager
     private lateinit var audioRecorder: AudioRecorder
     private lateinit var prefs: AppPreferences
@@ -44,7 +47,12 @@ class TranscriptionAccessibilityService : AccessibilityService() {
     private var isKeyboardVisible = false
     private var isRecording = false
     private var recordingJob: Job? = null
+    private var streamingJob: Job? = null
     private val audioBuffer = mutableListOf<ByteArray>()
+
+    // Initial text captured from focused node when dictation starts
+    private var initialText = ""
+    private var activeEngine: TranscriptionEngine? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -60,7 +68,6 @@ class TranscriptionAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        Log.i(TAG, "onAccessibilityEvent eventType: ${event.eventType}, package: ${event.packageName}, class: ${event.className}")
         if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED ||
             event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
         ) {
@@ -81,73 +88,166 @@ class TranscriptionAccessibilityService : AccessibilityService() {
         }
     }
 
-    // ─── Recording ────────────────────────────────────────────────────────────
+    // ─── Recording & Real-Time Dictation ──────────────────────────────────────
 
     private fun onMicClicked() {
         if (isRecording) stopRecording() else startRecording()
     }
 
     private fun startRecording() {
-        isRecording = true
-        audioBuffer.clear()
-        overlayManager.setState(OverlayManager.State.RECORDING)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "Cannot start recording: RECORD_AUDIO permission not granted")
+            Toast.makeText(this, "Permesso microfono non concesso. Apri l'app per autorizzarlo.", Toast.LENGTH_LONG).show()
+            return
+        }
 
-        recordingJob = serviceScope.launch {
-            audioRecorder.startRecording()
-                .onEach { chunk -> audioBuffer.add(chunk) }
-                .launchIn(this)
+        try {
+            isRecording = true
+            synchronized(audioBuffer) { audioBuffer.clear() }
+
+            // Capture initial text in focused field before dictation, ignoring placeholders
+            initialText = captureCleanFocusedText()
+            Log.i(TAG, "Captured initial text before dictation: '$initialText'")
+
+            overlayManager.setState(OverlayManager.State.RECORDING)
+            activeEngine = buildEngine()
+
+            // 1. Audio recording job
+            recordingJob = serviceScope.launch(Dispatchers.IO) {
+                try {
+                    audioRecorder.startRecording().collect { chunk ->
+                        synchronized(audioBuffer) {
+                            audioBuffer.add(chunk)
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    // Normal cancellation on stop
+                } catch (e: Exception) {
+                    Log.e(TAG, "Recording error in flow", e)
+                    withContext(Dispatchers.Main) {
+                        isRecording = false
+                        overlayManager.setState(OverlayManager.State.IDLE)
+                        Toast.makeText(this@TranscriptionAccessibilityService, "Errore registrazione: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+
+            // 2. Real-time streaming transcription job while speaking
+            streamingJob = serviceScope.launch(Dispatchers.IO) {
+                delay(1200)
+                while (isRecording) {
+                    val currentAudio = synchronized(audioBuffer) { combineBuffers(audioBuffer) }
+                    if (currentAudio.size >= 25000) {
+                        try {
+                            val result = activeEngine?.transcribe(
+                                audioBytes = currentAudio,
+                                mimeType = "audio/wav",
+                                language = prefs.language,
+                                onProgress = {},
+                                onPartialText = { partial ->
+                                    if (partial.isNotBlank() && isRecording) {
+                                        serviceScope.launch(Dispatchers.Main) {
+                                            injectLiveText(partial)
+                                        }
+                                    }
+                                }
+                            )
+                            if (result is TranscriptionResult.Success && result.text.isNotBlank() && isRecording) {
+                                serviceScope.launch(Dispatchers.Main) {
+                                    injectLiveText(result.text)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.d(TAG, "Streaming interim exception: ${e.message}")
+                        }
+                    }
+                    delay(1200)
+                }
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting recording", e)
+            isRecording = false
+            overlayManager.setState(OverlayManager.State.IDLE)
+            Toast.makeText(this, "Errore avvio microfono: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun stopRecording() {
         isRecording = false
-        audioRecorder.stopRecording()
+        try {
+            audioRecorder.stopRecording()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping recorder", e)
+        }
+
+        streamingJob?.cancel()
+        streamingJob = null
         recordingJob?.cancel()
         recordingJob = null
 
         if (audioBuffer.isNotEmpty()) {
-            transcribeBuffer()
+            finalTranscribeBuffer()
         } else {
             overlayManager.setState(OverlayManager.State.IDLE)
+            activeEngine?.release()
+            activeEngine = null
         }
     }
 
-    // ─── Transcription ────────────────────────────────────────────────────────
+    // ─── Final Pass Transcription ─────────────────────────────────────────────
 
-    private fun transcribeBuffer() {
+    private fun finalTranscribeBuffer() {
         overlayManager.setState(OverlayManager.State.PROCESSING)
-        val combined = combineBuffers(audioBuffer)
-        audioBuffer.clear()
+        val combined = synchronized(audioBuffer) {
+            val buf = combineBuffers(audioBuffer)
+            audioBuffer.clear()
+            buf
+        }
 
         serviceScope.launch(Dispatchers.IO) {
-            val engine = buildEngine()
-            val result = engine.transcribe(
-                audioBytes = combined,
-                mimeType = "audio/wav",
-                language = prefs.language,
-                onProgress = { Log.i(TAG, "Progress: $it") },
-                onPartialText = { partial ->
-                    serviceScope.launch(Dispatchers.Main) {
-                        injectText(partial)
+            try {
+                val engine = activeEngine ?: buildEngine()
+                val result = engine.transcribe(
+                    audioBytes = combined,
+                    mimeType = "audio/wav",
+                    language = prefs.language,
+                    onProgress = { Log.i(TAG, "Final progress: $it") },
+                    onPartialText = { partial ->
+                        serviceScope.launch(Dispatchers.Main) {
+                            injectLiveText(partial)
+                        }
                     }
+                )
+                serviceScope.launch(Dispatchers.Main) {
+                    when (result) {
+                        is TranscriptionResult.Success -> {
+                            if (result.text.isNotBlank()) {
+                                injectLiveText(result.text)
+                            }
+                        }
+                        is TranscriptionResult.Error -> {
+                            Log.e(TAG, "Transcription error: ${result.message}")
+                            Toast.makeText(this@TranscriptionAccessibilityService, result.message, Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    overlayManager.setState(OverlayManager.State.IDLE)
+                    engine.release()
+                    activeEngine = null
                 }
-            )
-            serviceScope.launch(Dispatchers.Main) {
-                when (result) {
-                    is TranscriptionResult.Success -> injectText(result.text)
-                    is TranscriptionResult.Error -> Log.e(TAG, "Transcription error: ${result.message}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Transcription exception", e)
+                serviceScope.launch(Dispatchers.Main) {
+                    overlayManager.setState(OverlayManager.State.IDLE)
+                    Toast.makeText(this@TranscriptionAccessibilityService, "Errore trascrizione: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    activeEngine?.release()
+                    activeEngine = null
                 }
-                overlayManager.setState(OverlayManager.State.IDLE)
             }
         }
     }
 
-    private fun buildEngine(): TranscriptionEngine = when (prefs.selectedEngine) {
-        AppPreferences.ENGINE_WHISPER -> WhisperCppEngine(prefs.whisperModelPath)
-        AppPreferences.ENGINE_GEMMA -> LiteRTEngine(prefs.gemmaModelPath)
-        AppPreferences.ENGINE_AICORE -> AICoreEngine(applicationContext)
-        else -> CloudEngine(prefs.geminiApiKey)
-    }
+    private fun buildEngine(): TranscriptionEngine = WhisperCppEngine(prefs.whisperModelPath)
 
     private fun combineBuffers(buffers: List<ByteArray>): ByteArray {
         val totalSize = buffers.sumOf { it.size }
@@ -160,37 +260,60 @@ class TranscriptionAccessibilityService : AccessibilityService() {
         return combined
     }
 
-    // ─── Text Injection ───────────────────────────────────────────────────────
+    // ─── Text Injection & Cleaning ────────────────────────────────────────────
 
-    /**
-     * Injects [text] into the currently focused accessibility node.
-     *
-     * Strategy:
-     * 1. Try ACTION_SET_TEXT (API 21+) — works in most standard EditText fields.
-     * 2. Fallback: copy to clipboard and paste — works in WebViews and complex fields.
-     */
-    private fun injectText(text: String) {
+    private fun captureCleanFocusedText(): String {
+        val rootNode = rootInActiveWindow ?: return ""
+        val focusedNode = findFocusedEditableNode(rootNode) ?: return ""
+
+        val clean = extractCleanText(focusedNode)
+        focusedNode.recycle()
+        return clean
+    }
+
+    private fun extractCleanText(focusedNode: AccessibilityNodeInfo): String {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && focusedNode.isShowingHintText) {
+            return ""
+        }
+        val text = focusedNode.text?.toString() ?: ""
+        val hint = focusedNode.hintText?.toString() ?: ""
+
+        if (text.isBlank() || text == hint) return ""
+
+        val trimmed = text.trim()
+        val commonPlaceholders = listOf(
+            "message", "messaggio", "type a message", "scrivi un messaggio",
+            "cerca", "search", "write a message", "send message"
+        )
+        if (commonPlaceholders.any { trimmed.equals(it, ignoreCase = true) || trimmed.startsWith("$it ", ignoreCase = true) }) {
+            return ""
+        }
+        return text
+    }
+
+    private fun injectLiveText(streamedText: String) {
+        if (streamedText.isBlank()) return
         val rootNode = rootInActiveWindow ?: run {
-            Log.w(TAG, "rootInActiveWindow is null, cannot inject text")
+            pasteViaClipboard(streamedText)
             return
         }
         val focusedNode = findFocusedEditableNode(rootNode) ?: run {
-            Log.w(TAG, "No focused editable node found, falling back to clipboard paste")
-            pasteViaClipboard(text)
+            pasteViaClipboard(streamedText)
             return
         }
 
-        // Append to existing text rather than replacing it
-        val existing = focusedNode.text?.toString() ?: ""
-        val newText = if (existing.isBlank()) text else "$existing $text"
+        val targetText = if (initialText.isBlank()) {
+            streamedText
+        } else {
+            "$initialText $streamedText"
+        }
 
         val args = Bundle().apply {
-            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, newText)
+            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, targetText)
         }
         val success = focusedNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
         if (!success) {
-            Log.w(TAG, "ACTION_SET_TEXT failed, falling back to clipboard paste")
-            pasteViaClipboard(text)
+            pasteViaClipboard(targetText)
         }
         focusedNode.recycle()
     }
@@ -227,6 +350,7 @@ class TranscriptionAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         super.onDestroy()
         overlayManager.hide()
+        activeEngine?.release()
         serviceScope.cancel()
     }
 }
