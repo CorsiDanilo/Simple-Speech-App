@@ -15,11 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Interactive Live Preview Box**: Real-time simulated preview of the floating microphone button directly inside Settings with state toggles (Idle, Recording, Processing).
 - **Reset to Defaults**: Quick action to restore standard dimensions (54dp, 90% opacity, Classic Gold accent).
 
-## [1.0.0] - 2026-07-24
+## [1.0.1] - 2026-07-24
 
 ### 🚀 Enhancements & UI Refinements
 - **Clean Overlay UI**: Removed text preview chip next to floating microphone button for a cleaner, non-intrusive floating button.
 - **Automatic Clipboard Copying**: Automatically copy transcribed text directly to system clipboard as soon as dictation completes.
+
+## [1.0.0] - 2026-07-24
+
+### 🚀 Enhancements & UI Refinements
 - **Native whisper.cpp NDK Integration**: Added JNI bindings for local, high-performance execution of Whisper GGML models (Tiny, Base, Small).
 - **Android Accessibility Service & Floating Overlay**:
   - Real-time speech-to-text dictation via a draggable floating bubble UI ([`OverlayManager`](file:///c:/Users/danil/Documents/GitHub/Projects/Simple-Speech-App/app/src/main/java/com/anomalyzed/simplespeechkeyboard/OverlayManager.kt)).
