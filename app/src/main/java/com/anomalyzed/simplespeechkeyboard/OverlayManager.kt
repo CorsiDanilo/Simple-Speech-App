@@ -29,7 +29,6 @@ class OverlayManager(
     private val prefs = AppPreferences(context)
     private var overlayView: View? = null
     private var micButton: ImageView? = null
-    private var previewTextView: android.widget.TextView? = null
     private var pulseAnimator: ObjectAnimator? = null
 
     enum class State { IDLE, RECORDING, PROCESSING }
@@ -85,28 +84,12 @@ class OverlayManager(
             overlayView = null
         }
         micButton = null
-        previewTextView = null
         currentState = State.IDLE
-    }
-
-    /** Updates live text preview chip next to mic button. */
-    fun updateLivePreview(text: String) {
-        val tv = previewTextView ?: return
-        if (text.isBlank() || currentState == State.IDLE) {
-            tv.visibility = View.GONE
-        } else {
-            tv.text = text
-            tv.visibility = View.VISIBLE
-        }
     }
 
     /** Updates button background and animation to reflect the current transcription state. */
     fun setState(state: State) {
         currentState = state
-        if (state == State.IDLE) {
-            previewTextView?.visibility = View.GONE
-            previewTextView?.text = ""
-        }
         overlayView?.let { updateAppearance(state) }
     }
 
@@ -171,37 +154,6 @@ class OverlayManager(
             val p = 6.dp
             setPadding(p, p, p, p)
         }
-
-        // Live text preview chip (placed to the left of the mic button)
-        val textView = android.widget.TextView(context).apply {
-            visibility = View.GONE
-            setTextColor(Color.WHITE)
-            textSize = 13f
-            maxLines = 2
-            ellipsize = android.text.TextUtils.TruncateAt.END
-            val padH = 12.dp
-            val padV = 8.dp
-            setPadding(padH, padV, padH, padV)
-
-            val textBg = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = 16.dp.toFloat()
-                setColor(Color.parseColor("#CC121212")) // 80% dark background
-                setStroke(1.dp, Color.parseColor("#44FFFFFF"))
-            }
-            background = textBg
-            elevation = 6.dp.toFloat()
-
-            val lp = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                marginEnd = 8.dp
-            }
-            layoutParams = lp
-        }
-        previewTextView = textView
-        container.addView(textView)
 
         // Mic Button
         val buttonSizePx = buttonSizeDp.dp

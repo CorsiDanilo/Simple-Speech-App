@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-07-24
+
+### 🚀 Enhancements & UI Refinements
+- **Clean Overlay UI**: Removed text preview chip next to floating microphone button for a cleaner, non-intrusive floating button.
+- **Automatic Clipboard Copying**: Automatically copy transcribed text directly to system clipboard as soon as dictation completes.
+
 ## [1.0.0] - 2026-07-24
 
 ### 🚀 Features & Enhancements

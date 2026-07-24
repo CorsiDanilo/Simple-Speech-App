@@ -148,7 +148,6 @@ class TranscriptionAccessibilityService : AccessibilityService() {
                                 onPartialText = { partial ->
                                     if (partial.isNotBlank() && isRecording) {
                                         serviceScope.launch(Dispatchers.Main) {
-                                            overlayManager.updateLivePreview(partial)
                                             injectLiveText(partial)
                                         }
                                     }
@@ -156,7 +155,6 @@ class TranscriptionAccessibilityService : AccessibilityService() {
                             )
                             if (result is TranscriptionResult.Success && result.text.isNotBlank() && isRecording) {
                                 serviceScope.launch(Dispatchers.Main) {
-                                    overlayManager.updateLivePreview(result.text)
                                     injectLiveText(result.text)
                                 }
                             }
@@ -219,7 +217,6 @@ class TranscriptionAccessibilityService : AccessibilityService() {
                     onProgress = { Log.i(TAG, "Final progress: $it") },
                     onPartialText = { partial ->
                         serviceScope.launch(Dispatchers.Main) {
-                            overlayManager.updateLivePreview(partial)
                             injectLiveText(partial)
                         }
                     }
@@ -228,8 +225,8 @@ class TranscriptionAccessibilityService : AccessibilityService() {
                     when (result) {
                         is TranscriptionResult.Success -> {
                             if (result.text.isNotBlank()) {
-                                overlayManager.updateLivePreview(result.text)
                                 injectLiveText(result.text)
+                                copyToClipboard(result.text)
                             }
                         }
                         is TranscriptionResult.Error -> {
@@ -250,6 +247,17 @@ class TranscriptionAccessibilityService : AccessibilityService() {
                     activeEngine = null
                 }
             }
+        }
+    }
+
+    private fun copyToClipboard(text: String) {
+        if (text.isBlank()) return
+        try {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("Trascrizione", text))
+            Log.i(TAG, "Copied transcription to clipboard: '$text'")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error copying to clipboard", e)
         }
     }
 
