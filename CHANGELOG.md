@@ -5,15 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.1] - 2026-07-24
+## [1.0.0] - 2026-07-24
 
 ### 🚀 Enhancements & UI Refinements
 - **Clean Overlay UI**: Removed text preview chip next to floating microphone button for a cleaner, non-intrusive floating button.
 - **Automatic Clipboard Copying**: Automatically copy transcribed text directly to system clipboard as soon as dictation completes.
-
-## [1.0.0] - 2026-07-24
-
-### 🚀 Features & Enhancements
 - **Native whisper.cpp NDK Integration**: Added JNI bindings for local, high-performance execution of Whisper GGML models (Tiny, Base, Small).
 - **Android Accessibility Service & Floating Overlay**:
   - Real-time speech-to-text dictation via a draggable floating bubble UI ([`OverlayManager`](file:///c:/Users/danil/Documents/GitHub/Projects/Simple-Speech-App/app/src/main/java/com/anomalyzed/simplespeechkeyboard/OverlayManager.kt)).
